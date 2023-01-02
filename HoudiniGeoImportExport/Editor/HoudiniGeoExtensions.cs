@@ -545,7 +545,7 @@ namespace Houdini.GeoImportExport
         }
 
         public static void AddPoints<PointType>(
-            this HoudiniGeo houdiniGeo, PointCollection<PointType> pointCollection,
+            this HoudiniGeo houdiniGeo, IList<PointType> pointCollection,
             bool translateCoordinateSystems = true)
             where PointType : PointData
         {
