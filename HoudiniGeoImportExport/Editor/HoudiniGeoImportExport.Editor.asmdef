@@ -2,7 +2,9 @@
     "name": "HoudiniGeoImportExport.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:97bdb2cf856006444afb3a2635248988"
+        "GUID:97bdb2cf856006444afb3a2635248988",
+        "GUID:6e458976fb4fb4f4791d0c3d08889cb9",
+        "GUID:cfb27f12ae60ab9439e723272ec29f06"
     ],
     "includePlatforms": [
         "Editor"
