@@ -34,7 +34,7 @@ namespace Houdini.GeoImportExport
             where SplineType : SplineData<PointType>
             where PointType : PointData
         {
-            houdiniGeo.AddSplines<SplineType, PointType>(splineCollection, translateCoordinateSystems);
+            houdiniGeo.AddSplines(splineCollection, translateCoordinateSystems);
 
             Debug.Log($"Export spline collection to GEO file '{path}'");
             houdiniGeo.Export(path);
