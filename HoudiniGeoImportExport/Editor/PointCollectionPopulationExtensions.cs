@@ -30,7 +30,7 @@ namespace Houdini.GeoImportExport
         /// an instance of that prefab at the specified point.
         /// </summary>
         public static void PopulateWithPrefabs<PointType>(
-            this PointCollection<PointType> pointCollection, Transform prefabInstanceContainer)
+            this IList<PointType> points, Transform prefabInstanceContainer)
             where PointType : PointData, IPointDataPopulatable
         {
             // Make sure there's no content left from the previous import.
@@ -44,15 +44,14 @@ namespace Houdini.GeoImportExport
             prefabsThatCouldntBeFound.Clear();
 
             // Now populate the container with instances based on the specified prefabs.
-            for (int i = 0; i < pointCollection.Count; i++)
+            for (int i = 0; i < points.Count; i++)
             {
-                PointType point = pointCollection[i];
+                PointType point = points[i];
                 PlacePrefab(point, prefabInstanceContainer);
             }
         }
 
-        private static void PlacePrefab<PointType>(PointType point, Transform container)
-            where PointType : PointData, IPointDataPopulatable
+        private static void PlacePrefab(IPointDataPopulatable point, Transform container)
         {
             GameObject prefab = GetPrefabFromName(point.name);
             if (prefab == null)

@@ -12,8 +12,13 @@ using System.Collections.Generic;
 
 namespace Houdini.GeoImportExport
 {
+    /// <summary>
+    /// Non-genericized base class for Spline Data.
+    /// NOTE: Not a Spline Database but a Base for Spline Data. Sorry to disappoint.
+    /// </summary>
     public abstract class SplineDataBase
     {
+        public abstract IList<PointData> BasePoints { get; }
     }
     
     [Serializable]
@@ -23,6 +28,8 @@ namespace Houdini.GeoImportExport
         public PointCollection<PointType> points = new PointCollection<PointType>();
 
         public bool isClosed;
+
+        public override IList<PointData> BasePoints => new List<PointData>(points);
 
         public SplineData()
         {

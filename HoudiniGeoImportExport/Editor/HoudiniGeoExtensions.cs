@@ -545,15 +545,30 @@ namespace Houdini.GeoImportExport
         }
 
         public static void AddPoints<PointType>(
-            this HoudiniGeo houdiniGeo, PointCollection<PointType> pointCollection,
+            this HoudiniGeo houdiniGeo, IList<PointType> pointCollection,
             bool translateCoordinateSystems = true)
             where PointType : PointData
         {
+            // First determine the point type. You'd think we could just use PointType, but we actually want to be able
+            // to use this in a generic way and specify PointData (the base class) as the type.
+            Type pointType = pointCollection[0].GetType();
+
+            for (int i = 1; i < pointCollection.Count; i++)
+            {
+                if (pointCollection[i].GetType() != pointType)
+                {
+                    Debug.LogError($"Adding Points to Houdini GEO file but found point of type " +
+                                   $"'{pointCollection[i].GetType().Name}' while it was expecting all of the points " +
+                                   $"to be of type '{pointType.Name}'. We don't currently support exporting points " +
+                                   $"of mixed types.");
+                    return;
+                }
+            }
+
             // First create the attributes.
             Dictionary<FieldInfo, HoudiniGeoAttribute> fieldToPointAttribute =
                 new Dictionary<FieldInfo, HoudiniGeoAttribute>();
             Dictionary<FieldInfo, HoudiniGeoAttribute> fieldToDetailAttribute = new Dictionary<FieldInfo, HoudiniGeoAttribute>();
-            Type pointType = typeof(PointType);
             FieldInfo[] fieldCandidates =
                 pointType.GetFields(
                     BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -656,34 +671,35 @@ namespace Houdini.GeoImportExport
             }
         }
 
-        public static void AddSplines<SplineType, PointType>(
-            this HoudiniGeo houdiniGeo, SplineCollection<SplineType> splineCollection,
+        public static void AddSplines<SplineType>(
+            this HoudiniGeo houdiniGeo, IList<SplineType> splines,
             bool translateCoordinateSystems = true)
-            where SplineType : SplineData<PointType>
-            where PointType : PointData
+            where SplineType : SplineDataBase
         {
-            foreach (SplineType spline in splineCollection)
+            foreach (SplineType spline in splines)
             {
+                IList<PointData> points = spline.BasePoints;
+                
                 // Firstly we can just add all of the points. There is nothing special about these points, it's like
                 // any ordinary point collection.
-                houdiniGeo.AddPoints(spline.points, translateCoordinateSystems);
+                houdiniGeo.AddPoints(points, translateCoordinateSystems);
 
                 // Primitives are comprised of vertices, not points. So we need to add a vertex for every point.
                 // Why do we do this in reverse? The splines I exported from Maya do it in reverse, so I'm doing it too
                 // for consistency. You'll get the spline served to you the way it would be if it came from Maya instead.
-                for (int i = spline.points.Count - 1; i >= 0; i--)
+                for (int i = points.Count - 1; i >= 0; i--)
                 {
                     // Knowing that we just added points, we can grab them from the end of the list.
-                    int pointIndex = houdiniGeo.pointCount - spline.points.Count + i;
+                    int pointIndex = houdiniGeo.pointCount - points.Count + i;
                     houdiniGeo.pointRefs.Add(pointIndex);
                     houdiniGeo.vertexCount++;
                 }
                 
                 NURBCurvePrimitive nurbCurvePrimitive = new NURBCurvePrimitive();
-                for (int i = 0; i < spline.points.Count; i++)
+                for (int i = 0; i < points.Count; i++)
                 {
                     // Knowing that we just added a certain number of vertices, we can calculate which ones they were.
-                    int vertexIndex = houdiniGeo.vertexCount - spline.points.Count + i;
+                    int vertexIndex = houdiniGeo.vertexCount - points.Count + i;
                     nurbCurvePrimitive.indices.Add(vertexIndex);
                 }
 
@@ -697,7 +713,7 @@ namespace Houdini.GeoImportExport
                 // Here's my sources:
                 // https://en.wikipedia.org/wiki/Non-uniform_rational_B-spline#:~:text=The%20knot%20vector%20is%20a,control%20points%20plus%20curve%20order).
                 // Also go watch this, it's really good: https://www.youtube.com/watch?v=jvPPXbo87ds
-                int vertexCount = spline.points.Count;
+                int vertexCount = points.Count;
                 int knotCount = 2 + (vertexCount - nurbCurvePrimitive.order) / (nurbCurvePrimitive.order - 1);
                 for (int i = 0; i < knotCount; i++)
                 {
