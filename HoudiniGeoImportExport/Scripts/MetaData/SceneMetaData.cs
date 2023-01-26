@@ -53,6 +53,12 @@ namespace Houdini.GeoImportExport.MetaData
             metaDataExportPath.RelativeTo = levelPath;
         }
 
+        public PointCollection<PointType> GetPoints<PointType>(bool translateCoordinateSystems = true)
+            where PointType : PointData
+        {
+            return metaDataImport.GetPoints<PointType>(translateCoordinateSystems);
+        }
+
         public void DispatchMetaDataImportedEvent()
         {
             MetaDataImportedEvent?.Invoke(this);
