@@ -44,10 +44,18 @@ namespace Houdini.GeoImportExport.MetaData
                 return cachedContainer;
             }
         }
+        
+        public delegate void MetaDataImportedHandler(SceneMetaData sceneMetaData);
+        public static event MetaDataImportedHandler MetaDataImportedEvent;
 
         public SceneMetaData()
         {
             metaDataExportPath.RelativeTo = levelPath;
+        }
+
+        public void DispatchMetaDataImportedEvent()
+        {
+            MetaDataImportedEvent?.Invoke(this);
         }
     }
 }
