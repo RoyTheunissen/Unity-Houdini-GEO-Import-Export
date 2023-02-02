@@ -3,13 +3,14 @@ using Houdini.GeoImportExport.Settings;
 using RoyTheunissen.Scaffolding.Utilities;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Object = UnityEngine.Object;
 
 namespace Houdini.GeoImportExport.MetaData
 {
     /// <summary>
     /// Helps manage the flow of a specific scene's metadata between Unity and Houdini.
     /// </summary>
-    public sealed class SceneMetaData : MonoBehaviour
+    public sealed class SceneMetaData : MonoBehaviour, IMetaDataContainer
     {
         public const string ContainerName = "MetaData Import";
         
@@ -26,9 +27,9 @@ namespace Houdini.GeoImportExport.MetaData
         public bool SupportImporting => supportImporting;
         [SerializeField] private HoudiniGeo metaDataImport;
         public HoudiniGeo MetaDataImport => metaDataImport;
-        public bool CanImport => supportImporting && metaDataImport != null;
+        public bool CanImport => SupportImporting && metaDataImport != null;
 
-        public bool CanExport => supportExporting;
+        public bool CanExport => SupportExporting;
 
         [NonSerialized] private Transform cachedContainer;
         [NonSerialized] private bool didCacheContainer;
@@ -44,7 +45,11 @@ namespace Houdini.GeoImportExport.MetaData
                 return cachedContainer;
             }
         }
-        
+
+        GameObject IMetaDataContainer.GameObject => gameObject;
+
+        public string Name => name;
+
         public delegate void MetaDataImportedHandler(SceneMetaData sceneMetaData);
         public static event MetaDataImportedHandler MetaDataImportedEvent;
 
