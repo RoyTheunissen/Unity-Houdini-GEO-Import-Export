@@ -62,6 +62,37 @@ namespace Houdini.GeoImportExport
             instance.transform.localRotation = point.orient;
             instance.transform.localScale = point.scale * point.pscale;
         }
+        
+        private static void FindPrefabCandidates(
+            ref List<GameObject> candidates, string type, string name)
+        {
+            string nameDirectory = Path.GetDirectoryName(name);
+            bool nameIncludesDirectories = !string.IsNullOrEmpty(nameDirectory);
+            
+            string[] guids = AssetDatabase.FindAssets($"t:{type} {name}");
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid).ToUnityPath();
+                string fileName = Path.GetFileNameWithoutExtension(path);
+
+                // The file can't just contain the name on the point, it needs to match it exactly.
+                if (fileName != name)
+                    continue;
+
+                // If the name includes directories, filter out any prefabs whose directory doesn't match.
+                if (nameIncludesDirectories)
+                {
+                    string directory = Path.GetDirectoryName(path).ToUnityPath();
+
+                    // Make sure that the path of this candidate ends with the specified directories.
+                    if (!directory.EndsWith(nameDirectory))
+                        continue;
+                }
+
+                GameObject candidatePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                candidates.Add(candidatePrefab);
+            }
+        }
 
         private static GameObject GetPrefabFromName(string name)
         {
@@ -94,30 +125,17 @@ namespace Houdini.GeoImportExport
             }
 
             // It's not known to us. Go find it.
-            string[] guids = AssetDatabase.FindAssets("t:gameObject " + name);
             List<GameObject> candidates = new List<GameObject>();
-            foreach (string guid in guids)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid).ToUnityPath();
-                string fileName = Path.GetFileNameWithoutExtension(path);
-
-                // The file can't just contain the name on the point, it needs to match it exactly.
-                if (fileName != name)
-                    continue;
-
-                // If the name includes directories, filter out any prefabs whose directory doesn't match.
-                if (nameIncludesDirectories)
-                {
-                    string directory = Path.GetDirectoryName(path).ToUnityPath();
-
-                    // Make sure that the path of this candidate ends with the specified directories.
-                    if (!directory.EndsWith(nameDirectory))
-                        continue;
-                }
-
-                GameObject candidatePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                candidates.Add(candidatePrefab);
-            }
+            
+            // We used to search for t:gameObject because that includes both model files and prefabs. How about we first
+            // search for prefabs, give those priority, and if we don't find one THEN we look for models? This way if
+            // there's a matching model file, but you've made a variant of that, it will use that one instead. That
+            // seems like more desirable behaviour because if you made a variant you were probably meaning to override
+            // some of the values from the model.
+            FindPrefabCandidates(ref candidates, "prefab", name);
+            
+            if (candidates.Count == 0)
+                FindPrefabCandidates(ref candidates, "model", name);
 
             if (candidates.Count > 0)
             {
