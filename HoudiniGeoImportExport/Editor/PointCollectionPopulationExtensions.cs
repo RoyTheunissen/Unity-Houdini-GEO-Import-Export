@@ -115,7 +115,7 @@ namespace Houdini.GeoImportExport
 
             // First check if we found that prefab already.
             bool foundAlready = prefabsByName.TryGetValue(originalName, out GameObject prefab);
-            if (foundAlready)
+            if (foundAlready && prefab != null)
                 return prefab;
 
             // Figure out if a directory is specified.
