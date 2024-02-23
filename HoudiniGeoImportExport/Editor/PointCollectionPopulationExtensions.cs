@@ -20,11 +20,16 @@ namespace Houdini.GeoImportExport
     /// </summary>
     public static class PointCollectionPopulationExtensions
     {
+        private const float InstanceReuseDistanceTolerance = 0.01f;
+        
         private const string PrefabSuffix = ".prefab";
 
         private static readonly List<string> prefabsThatCouldntBeFound = new List<string>();
 
-        private static Dictionary<string, GameObject> prefabsByName = new Dictionary<string, GameObject>();
+        private static readonly Dictionary<string, List<GameObject>> prefabPathToExistingInstances
+            = new Dictionary<string, List<GameObject>>();
+
+        private static readonly Dictionary<string, GameObject> prefabsByName = new Dictionary<string, GameObject>();
 
         /// <summary>
         /// Takes the point collection, and checks if it specifies a prefab in its name attribute. If so, we spawn
@@ -34,11 +39,23 @@ namespace Houdini.GeoImportExport
             this IList<PointType> points, Transform prefabInstanceContainer)
             where PointType : PointData, IPointDataPopulatable
         {
-            // Make sure there's no content left from the previous import.
+            // Keep track of what's already there so we can leave it if it already satisfies the conditions. This is not
+            // just an optimization but it also allows users to override properties on these automatically placed
+            // objects. That's useful so you can still go in and tweak some things.
+            prefabPathToExistingInstances.Clear();
             for (int i = prefabInstanceContainer.childCount - 1; i >= 0; i--)
             {
                 Transform child = prefabInstanceContainer.GetChild(i);
-                Undo.DestroyObjectImmediate(child.gameObject);
+                string prefabPath = GetPrefabPathOfInstance(child.gameObject);
+                bool existed = prefabPathToExistingInstances.TryGetValue(prefabPath, out List<GameObject> instances);
+                
+                if (!existed)
+                {
+                    instances = new List<GameObject>();
+                    prefabPathToExistingInstances.Add(prefabPath, instances);
+                }
+                    
+                instances.Add(child.gameObject);
             }
 
             // We only want to show a warning once per missing prefab type.
@@ -48,20 +65,78 @@ namespace Houdini.GeoImportExport
             for (int i = 0; i < points.Count; i++)
             {
                 PointType point = points[i];
-                PlacePrefab(point, prefabInstanceContainer);
+                
+                // Figure out what prefab this point wants.
+                GameObject prefab = GetPrefabFromName(point.name);
+                if (prefab == null)
+                    continue;
+                
+                // Check if we already have an instance at this position.
+                Vector3 worldPosition = prefabInstanceContainer.TransformPoint(point.P);
+                
+                GameObject existingPrefabInstanceThere = FindAndClaimExistingPrefabInstanceAt(prefab, worldPosition);
+                
+                // The requested prefab type was already there. Just leave it!
+                if (existingPrefabInstanceThere != null)
+                    continue;
+
+                // The requested prefab type was not there. Let's place one there.
+                PlacePrefab(point, prefab, prefabInstanceContainer);
             }
+            
+            // Whatever existing prefab instances were NOT claimed should now be destroyed.
+            foreach (KeyValuePair<string,List<GameObject>> prefabExistingInstancesPair in prefabPathToExistingInstances)
+            {
+                for (int i = prefabExistingInstancesPair.Value.Count - 1; i >= 0; i--)
+                {
+                    Undo.DestroyObjectImmediate(prefabExistingInstancesPair.Value[i]);
+                }
+            }
+            prefabPathToExistingInstances.Clear();
         }
 
-        private static void PlacePrefab(IPointDataPopulatable point, Transform container)
+        private static string GetPrefabPathOfInstance(GameObject instance)
         {
-            GameObject prefab = GetPrefabFromName(point.name);
-            if (prefab == null)
-                return;
+            if (instance == null || !PrefabUtility.IsPartOfPrefabThatCanBeAppliedTo(instance))
+                return null;
 
+            GameObject prefab = PrefabUtility.GetCorrespondingObjectFromSource(instance);
+            return prefab == null ? null : AssetDatabase.GetAssetPath(prefab);
+        }
+
+        private static GameObject FindAndClaimExistingPrefabInstanceAt(GameObject prefab, Vector3 position)
+        {
+            // Check if we have instances of the specified prefab type.
+            string prefabPath = AssetDatabase.GetAssetPath(prefab);
+            bool hadInstances = prefabPathToExistingInstances.TryGetValue(prefabPath, out List<GameObject> instances);
+            if (!hadInstances)
+                return null;
+            
+            for (int i = 0; i < instances.Count; i++)
+            {
+                GameObject instance = instances[i];
+
+                // If there's one roughly in the same position, use that instance.
+                float distance = Vector3.Distance(instance.transform.position, position);
+                if (distance < InstanceReuseDistanceTolerance)
+                {
+                    // Claim it so a further iteration cannot use the same instance.
+                    instances.Remove(instance);
+                    
+                    return instance;
+                }
+            }
+
+            return null;
+        }
+
+        private static void PlacePrefab(IPointDataPopulatable point, GameObject prefab, Transform container)
+        {
             GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, container);
             instance.transform.localPosition = point.P;
             instance.transform.localRotation = point.orient;
             instance.transform.localScale = point.scale * point.pscale;
+            Undo.RegisterCreatedObjectUndo(instance, "Placed Prefab From Point Collection");
 
             // If there are any components that would like to receive a callback when they are populated by metadata,
             // find those components and give them the callback now.
