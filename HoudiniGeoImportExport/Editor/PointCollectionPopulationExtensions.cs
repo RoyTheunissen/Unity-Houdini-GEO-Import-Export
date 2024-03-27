@@ -78,7 +78,13 @@ namespace Houdini.GeoImportExport
                 
                 // The requested prefab type was already there. Just leave it!
                 if (existingPrefabInstanceThere != null)
+                {
+                    // Update the rotation and scale though as necessary.
+                    existingPrefabInstanceThere.transform.localRotation = point.orient;
+                    existingPrefabInstanceThere.transform.localScale = point.scale * point.pscale;
+                    
                     continue;
+                }
 
                 // The requested prefab type was not there. Let's place one there.
                 PlacePrefab(point, prefab, prefabInstanceContainer);
