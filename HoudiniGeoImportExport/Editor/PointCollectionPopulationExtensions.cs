@@ -7,11 +7,15 @@
  * Some rights reserved. See COPYING, AUTHORS.
  */
 
+// #define DEBUG_POPULATION_DURATION
+
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using RoyTheunissen.UnityHoudiniGEOImportExport;
 using UnityEditor;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Houdini.GeoImportExport
 {
@@ -31,6 +35,18 @@ namespace Houdini.GeoImportExport
 
         private static readonly Dictionary<string, GameObject> prefabsByName = new Dictionary<string, GameObject>();
 
+        private static bool IsReusable(GameObject instanceOrPrefab)
+        {
+            // Certain prefabs are so numerous and aren't really intended to allow any tweaks by users, and we might as
+            // well not bother to re-use existing instances and just destroy them all and re-place them. Grass clusters
+            // are the perfect example of this. I did some tests and populating world-1 goes from about 13 seconds to
+            // 3 seconds. That's pretty nice, and worth it in my opinion.
+            if (instanceOrPrefab.name.Contains("Grass"))
+                return false;
+            
+            return true;
+        }
+
         /// <summary>
         /// Takes the point collection, and checks if it specifies a prefab in its name attribute. If so, we spawn
         /// an instance of that prefab at the specified point.
@@ -39,6 +55,11 @@ namespace Houdini.GeoImportExport
             this IList<PointType> points, Transform prefabInstanceContainer)
             where PointType : PointData, IPointDataPopulatable
         {
+#if DEBUG_POPULATION_DURATION
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+#endif // DEBUG_POPULATION_DURATION
+            
             // Keep track of what's already there so we can leave it if it already satisfies the conditions. This is not
             // just an optimization but it also allows users to override properties on these automatically placed
             // objects. That's useful so you can still go in and tweak some things.
@@ -46,6 +67,13 @@ namespace Houdini.GeoImportExport
             for (int i = prefabInstanceContainer.childCount - 1; i >= 0; i--)
             {
                 Transform child = prefabInstanceContainer.GetChild(i);
+
+                if (!IsReusable(child.gameObject))
+                {
+                    Object.DestroyImmediate(child.gameObject);
+                    continue;
+                }
+                
                 string prefabPath = GetPrefabPathOfInstance(child.gameObject);
                 bool existed = prefabPathToExistingInstances.TryGetValue(prefabPath, out List<GameObject> instances);
                 
@@ -71,19 +99,22 @@ namespace Houdini.GeoImportExport
                 if (prefab == null)
                     continue;
                 
-                // Check if we already have an instance at this position.
-                Vector3 worldPosition = prefabInstanceContainer.TransformPoint(point.P);
-                
-                GameObject existingPrefabInstanceThere = FindAndClaimExistingPrefabInstanceAt(prefab, worldPosition);
-                
-                // The requested prefab type was already there. Just leave it!
-                if (existingPrefabInstanceThere != null)
+                if (IsReusable(prefab))
                 {
-                    // Update the rotation and scale though as necessary.
-                    existingPrefabInstanceThere.transform.localRotation = point.orient;
-                    existingPrefabInstanceThere.transform.localScale = point.scale * point.pscale;
+                    // Check if we already have an instance at this position.
+                    Vector3 worldPosition = prefabInstanceContainer.TransformPoint(point.P);
+                
+                    GameObject existingPrefabInstanceThere = FindAndClaimExistingPrefabInstanceAt(prefab, worldPosition);
+                
+                    // The requested prefab type was already there. Just leave it!
+                    if (existingPrefabInstanceThere != null)
+                    {
+                        // Update the rotation and scale though as necessary.
+                        existingPrefabInstanceThere.transform.localRotation = point.orient;
+                        existingPrefabInstanceThere.transform.localScale = point.scale * point.pscale;
                     
-                    continue;
+                        continue;
+                    }
                 }
 
                 // The requested prefab type was not there. Let's place one there.
@@ -99,6 +130,11 @@ namespace Houdini.GeoImportExport
                 }
             }
             prefabPathToExistingInstances.Clear();
+            
+#if DEBUG_POPULATION_DURATION
+            stopwatch.Stop();
+            Debug.Log($"FINISHED METADATA POPULATION. Took <b>{stopwatch.Elapsed}</b>.");
+#endif // DEBUG_POPULATION_DURATION
         }
 
         private static string GetPrefabPathOfInstance(GameObject instance)
