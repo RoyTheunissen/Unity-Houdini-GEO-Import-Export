@@ -659,6 +659,9 @@ namespace Houdini.GeoImportExport
             PointCollection<PointType> points = new PointCollection<PointType>();
             Type pointType = typeof(PointType);
 
+            if (houdiniGeo == null)
+                return points;
+
             for (int i = 0; i < houdiniGeo.pointCount; i++)
             {
                 bool hasDefaultConstructor = typeof(PointType).GetConstructor(Type.EmptyTypes) != null;
