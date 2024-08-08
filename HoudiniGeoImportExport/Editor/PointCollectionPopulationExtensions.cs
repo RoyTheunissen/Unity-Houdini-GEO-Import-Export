@@ -139,8 +139,11 @@ namespace Houdini.GeoImportExport
 
         private static string GetPrefabPathOfInstance(GameObject instance)
         {
-            if (instance == null || !PrefabUtility.IsPartOfPrefabThatCanBeAppliedTo(instance))
+            if (instance == null || !PrefabUtility.IsPartOfPrefabThatCanBeAppliedTo(instance) &&
+                !PrefabUtility.IsPartOfModelPrefab(instance))
+            {
                 return null;
+            }
 
             GameObject prefab = PrefabUtility.GetCorrespondingObjectFromSource(instance);
             return prefab == null ? null : AssetDatabase.GetAssetPath(prefab);
