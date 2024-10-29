@@ -15,7 +15,11 @@ namespace Houdini.GeoImportExport.MetaData
 
         private static void HandleGeoFileImportedEvent(HoudiniGeo houdiniGeo)
         {
+#if UNITY_6000_0_OR_NEWER
+            SceneMetaData[] sceneMetaDatas = Object.FindObjectsByType<SceneMetaData>(FindObjectsSortMode.None);
+#else
             SceneMetaData[] sceneMetaDatas = Object.FindObjectsOfType<SceneMetaData>();
+#endif
             foreach (SceneMetaData sceneMetaData in sceneMetaDatas)
             {
                 if (!sceneMetaData.CanImport || sceneMetaData.MetaDataImport != houdiniGeo)
