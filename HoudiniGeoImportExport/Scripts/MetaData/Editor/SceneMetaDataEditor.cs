@@ -15,14 +15,21 @@ namespace Houdini.GeoImportExport.MetaData
         
         private SerializedProperty supportExportingProperty;
         private SerializedProperty levelPathProperty;
+        private SerializedProperty calculateLocalPositionsRelativeToProperty;
         private SerializedProperty metaDataExportPathProperty;
         private SerializedProperty metaDataImportProperty;
         private SerializedProperty supportImportingProperty;
+
+        private static readonly GUIContent CalculateLocalPositionsRelativeToLabel = new("Local Positions Relative To");
 
         private void OnEnable()
         {
             supportExportingProperty = serializedObject.FindProperty("supportExporting");
             levelPathProperty = serializedObject.FindProperty("levelPath");
+
+            calculateLocalPositionsRelativeToProperty =
+                serializedObject.FindProperty("calculateLocalPositionsRelativeTo");
+            
             metaDataExportPathProperty = serializedObject.FindProperty("metaDataExportPath");
             
             supportImportingProperty = serializedObject.FindProperty("supportImporting");
@@ -45,6 +52,10 @@ namespace Houdini.GeoImportExport.MetaData
                 EditorGUILayout.PropertyField(levelPathProperty);
                 EditorGUILayout.Space();
                 EditorGUILayout.PropertyField(metaDataExportPathProperty);
+                
+                EditorGUILayout.Space();
+                EditorGUILayout.PropertyField(
+                    calculateLocalPositionsRelativeToProperty, CalculateLocalPositionsRelativeToLabel);
                 
                 bool shouldExport = GUILayout.Button("Export Meta Data");
                 if (shouldExport)

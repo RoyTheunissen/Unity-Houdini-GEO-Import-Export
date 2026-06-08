@@ -18,6 +18,11 @@ namespace Houdini.GeoImportExport.MetaData
         public bool SupportExporting => supportExporting;
 
         [SerializeField] private PathReference levelPath = new PathReference("World-", HoudiniSettings.HoudiniGeometryPath);
+        
+        [SerializeField] private Transform calculateLocalPositionsRelativeTo;
+        public Transform TransformForCalculatingRelativePositions => calculateLocalPositionsRelativeTo != null
+            ? calculateLocalPositionsRelativeTo
+            : transform;
 
         [FormerlySerializedAs("metaDataPath")]
         [SerializeField] private PathReference metaDataExportPath = new PathReference("MetaData");
