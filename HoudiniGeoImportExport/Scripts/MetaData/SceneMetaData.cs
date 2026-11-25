@@ -58,6 +58,12 @@ namespace Houdini.GeoImportExport.MetaData
         public delegate void MetaDataImportedHandler(SceneMetaData sceneMetaData);
         public static event MetaDataImportedHandler MetaDataImportedEvent;
 
+        public delegate void MetaDataPopulatedHandler(SceneMetaData sceneMetaData);
+        /// <summary>
+        /// After the imported metadata has placed its prefabs, for processing what was placed.
+        /// </summary>
+        public static event MetaDataPopulatedHandler MetaDataPopulatedEvent;
+
         public SceneMetaData()
         {
             metaDataExportPath.RelativeTo = levelPath;
@@ -72,6 +78,11 @@ namespace Houdini.GeoImportExport.MetaData
         public void DispatchMetaDataImportedEvent()
         {
             MetaDataImportedEvent?.Invoke(this);
+        }
+
+        public void DispatchMetaDataPopulatedEvent()
+        {
+            MetaDataPopulatedEvent?.Invoke(this);
         }
     }
 }

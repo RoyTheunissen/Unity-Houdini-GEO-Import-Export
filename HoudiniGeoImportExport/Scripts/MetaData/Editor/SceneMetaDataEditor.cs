@@ -137,6 +137,7 @@ namespace Houdini.GeoImportExport.MetaData
         {
             sceneMetaData.DispatchMetaDataImportedEvent();
             SceneMetaDataPopulator.PlacePrefabsFromMetaData(sceneMetaData);
+            sceneMetaData.DispatchMetaDataPopulatedEvent();
         }
     }
 }
